@@ -325,6 +325,7 @@ instance Pretty FunctionAttribute where
    InlineHint                  -> "inlinehint"
    JumpTable                   -> "jumptable"
    MinimizeSize                -> "minsize"
+   MustProgress                -> "mustprogress"
    Naked                       -> "naked"
    NoBuiltin                   -> "nobuiltin"
    NoDuplicate                 -> "noduplicate"
