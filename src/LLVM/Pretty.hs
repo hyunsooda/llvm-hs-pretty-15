@@ -41,6 +41,7 @@ import LLVM.AST.Operand hiding (DIGLobalVariable(..), GlobalVariable, Module, No
 import qualified LLVM.AST.Operand as O
 import LLVM.AST.ParameterAttribute as PA
 import LLVM.AST.FunctionAttribute as FA
+import LLVM.IRBuilder (runModuleBuilder, emptyModuleBuilder, ModuleBuilder)
 
 import Data.String
 
@@ -59,6 +60,7 @@ import qualified Data.ByteString.Char8 as BL
 import qualified Data.ByteString.Short as BS
 import Data.Char (chr, ord, isAscii, isControl, isLetter, isDigit)
 import Data.Foldable (toList)
+import Data.Either (fromRight)
 import Data.Int
 import Data.List (intersperse)
 import Data.Maybe (isJust, mapMaybe)
@@ -201,7 +203,7 @@ ppParamAttributes pas = hsep $ fmap pretty pas
 --   pretty (op, attrs) = pretty (typeOf op) <+> pretty attrs <+> pretty op
 
 ppArguments :: (Operand, [ParameterAttribute]) -> Doc ann
-ppArguments (op, attrs) = pretty (typeOf op) <+> ppParamAttributes attrs <+> pretty op
+ppArguments (op, attrs) = pretty (typeOf' op) <+> ppParamAttributes attrs <+> pretty op
 
 instance Pretty UnnamedAddr where
   pretty LocalAddr = "local_unnamed_addr"
@@ -237,7 +239,7 @@ instance Pretty Global where
         [] ->
           ("declare" <+> pretty linkage <+> pretty callingConvention
             <+> ppReturnAttributes returnAttributes <+> pretty returnType <+> global (pretty name)
-            <> ppParams (pretty . typeOf) parameters <+> ppFunctionAttributes functionAttributes <+> align <+> gcName <+> pre)
+            <> ppParams (pretty . typeOf') parameters <+> ppFunctionAttributes functionAttributes <+> align <+> gcName <+> pre)
 
         -- single unnamed block is special cased, and won't parse otherwise... yeah good times
         [b@(BasicBlock (UnName _) _ _)] ->
@@ -273,7 +275,7 @@ instance Pretty Global where
 
   pretty GlobalAlias {..} = global (pretty name) <+> "=" <+> pretty linkage <+> ppMaybe unnamedAddr <+> "alias" <+> pretty typ `cma` ppTyped aliasee
     where
-      typ = getElementType type'
+      typ = fromRight (error "Failed to retrieve type") (getElementType type')
 
 ppFunctionAttribute :: Either GroupID FunctionAttribute -> Doc ann
 ppFunctionAttribute (Left grpId) = pretty grpId
@@ -504,6 +506,10 @@ instance Pretty Terminator where
       "unwind" <+> "to" <+> maybe "caller" pretty defaultUnwindDest
       <+> ppInstrMeta metadata'
 
+typeOf' :: Typed a => a -> Type
+typeOf' = fromRight (error "typedef unsupported") . fst . runModuleBuilder emptyModuleBuilder . typeOf
+
+
 instance Pretty Instruction where
   pretty = \case
     FNeg {..}   -> "fneg" <+> (pretty fastMathFlags) <+> ppTyped operand0 <+> ppInstrMeta metadata
@@ -535,7 +541,7 @@ instance Pretty Instruction where
     Store {..}  -> "store" <+> ppMAtomicity maybeAtomicity <+> ppVolatile volatile <+> ppTyped value `cma` ppTyped address <+> ppMOrdering maybeAtomicity <> ppAlign alignment <+> ppInstrMeta metadata
     Load {..}   -> "load" <+> ppMAtomicity maybeAtomicity <+> ppVolatile volatile <+> pretty argTy `cma` ppTyped address <+> ppMOrdering maybeAtomicity <> ppAlign alignment <+> ppInstrMeta metadata
       where
-        argTy = case typeOf address of
+        argTy = case typeOf' address of
           PointerType argTy_ _ -> argTy_
           _ -> error "invalid load of non-pointer type. (Malformed AST)"
     Phi {..}    -> "phi" <+> pretty type' <+> commas (fmap phiIncoming incomingValues) <+> ppInstrMeta metadata
@@ -551,7 +557,7 @@ instance Pretty Instruction where
     FPTrunc {..}  -> "fptrunc" <+> ppTyped operand0 <+> "to" <+> pretty type' <+> ppInstrMeta metadata <+> ppInstrMeta metadata
 
     GetElementPtr {..} -> "getelementptr" <+> bounds inBounds <+> commas (pretty argTy : fmap ppTyped (address:indices)) <+> ppInstrMeta metadata
-      where argTy = getElementType $ typeOf address
+      where argTy = fromRight (error "Failed to retrieve type") . getElementType $ typeOf' address
     ExtractValue {..} -> "extractvalue" <+> commas (ppTyped aggregate : fmap pretty indices') <+> ppInstrMeta metadata
 
     BitCast {..} -> "bitcast" <+> ppTyped operand0 <+> "to" <+> pretty type' <+> ppInstrMeta metadata
@@ -1130,7 +1136,7 @@ instance Pretty C.Constant where
 
   pretty C.GetElementPtr {..} = "getelementptr" <+> bounds inBounds <+> parens (commas (pretty argTy : fmap ppTyped (address:indices)))
     where
-      argTy = case typeOf address of
+      argTy = case typeOf' address of
         PointerType argTy_ _ -> argTy_
         _ -> error "invalid load of non-pointer type. (Malformed AST)"
       bounds True = "inbounds"
@@ -1285,16 +1291,16 @@ ppAlign x | x == 0    = mempty
 
 -- print an operand and its type
 ppTyped :: (Pretty a, Typed a) => a -> Doc ann
-ppTyped a = pretty (typeOf a) <+> pretty a
+ppTyped a = pretty (typeOf' a) <+> pretty a
 
 ppCommaTyped :: (Pretty a, Typed a) => a -> Doc ann
-ppCommaTyped a = pretty (typeOf a) `cma` pretty a
+ppCommaTyped a = pretty (typeOf' a) `cma` pretty a
 
 phiIncoming :: (Operand, Name) -> Doc ann
 phiIncoming (op, nm) = brackets (pretty op `cma` (local' (pretty nm)))
 
 ppShuffleMask :: [Int32] -> Doc ann
-ppShuffleMask m = pretty (typeOf m) <+> ("<" <+> (commas $ fmap (ppTyped . (ConstantOperand . C.Int 32 . fromIntegral)) m) <+> ">")
+ppShuffleMask m = pretty (typeOf' m) <+> ("<" <+> (commas $ fmap (ppTyped . (ConstantOperand . C.Int 32 . fromIntegral)) m) <+> ">")
 
 ppParams :: (a -> Doc ann) -> ([a], Bool) -> Doc ann
 ppParams ppParam (ps, varrg) = parens . commas $ fmap ppParam ps ++ vargs
@@ -1317,7 +1323,7 @@ ppCall Call { function = Right f,..}
   = tail <+> "call" <+> pretty callingConvention <+> ppReturnAttributes returnAttributes <+> pretty resultType' <+> ftype
     <+> pretty f <> parens (commas $ fmap ppArguments arguments) <+> ppFunctionAttributes functionAttributes
     where
-      functionType = case (referencedType (typeOf f)) of
+      functionType = case (referencedType (typeOf' f)) of
                        fty@FunctionType {..} -> fty
                        _ -> error "Calling non function type. (Malformed AST)"
       resultType' = resultType functionType
@@ -1360,7 +1366,7 @@ ppInvoke Invoke { function' = Right f,..}
   = "invoke" <+> pretty callingConvention' <+> pretty resultType' <+> ftype
     <+> pretty f <> parens (commas $ fmap ppArguments arguments') <+> ppFunctionAttributes functionAttributes'
     where
-      functionType = case referencedType (typeOf f) of
+      functionType = case referencedType (typeOf' f) of
                        fty@FunctionType{..} -> fty
                        _ -> error "Invoking non-function type. (Malformed AST)"
       resultType' = resultType functionType
