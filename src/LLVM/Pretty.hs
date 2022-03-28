@@ -51,9 +51,9 @@ import qualified Data.ByteString.Short as SBF
 import qualified Data.ByteString.Lazy.Char8 as BF
 import Data.ByteString.Lazy (fromStrict)
 import Data.ByteString.Internal (w2c)
-import Data.Text.Prettyprint.Doc
-import qualified Data.Text.Prettyprint.Doc as P
-import Data.Text.Prettyprint.Doc.Render.Text
+import Prettyprinter
+import qualified Prettyprinter as P
+import Prettyprinter.Render.Text
 
 import qualified Data.ByteString.Char8 as BL
 import qualified Data.ByteString.Short as BS
