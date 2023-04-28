@@ -1,10 +1,10 @@
-resolver: nightly-2021-07-04 # GHC 9.0.1
+resolver: lts-20.17
 
 packages:
 - '.'
 
 extra-deps:
-- archive: https://github.com/llvm-hs/llvm-hs/archive/refs/heads/llvm-12.zip
+- archive: https://github.com/llvm-hs/llvm-hs/archive/refs/heads/llvm-15.zip
   subdirs:
   - llvm-hs
   - llvm-hs-pure
