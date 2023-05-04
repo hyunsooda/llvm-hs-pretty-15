@@ -219,8 +219,8 @@ instance Pretty Type where
   pretty (FloatingPointType PPC_FP128FP) = "ppc_fp128"
   pretty VoidType = "void"
   pretty (PointerType { pointerAddrSpace = AS.AddrSpace addr })
-    | addr == 0 = "*"
-    | otherwise = "addrspace" <> parens (pretty addr) <> "*"
+    | addr == 0 = "ptr"
+    | otherwise = "addrspace" <> parens (pretty addr) <> "ptr"
   pretty ft@(FunctionType {..}) = pretty resultType <+> ppFunctionArgumentTypes ft
   pretty (VectorType {..}) = "<" <> pretty nVectorElements <+> "x" <+> pretty elementType <> ">"
   pretty (StructureType {..}) = if isPacked
@@ -561,7 +561,7 @@ instance Pretty Instruction where
     Trunc {..}  -> "trunc" <+> ppTyped operand0 <+> "to" <+> pretty type' <+> ppInstrMeta metadata <+> ppInstrMeta metadata
     FPTrunc {..}  -> "fptrunc" <+> ppTyped operand0 <+> "to" <+> pretty type' <+> ppInstrMeta metadata <+> ppInstrMeta metadata
 
-    GetElementPtr {..} -> "getelementptr" <+> bounds inBounds <+> commas (pretty argTy : fmap ppTyped (address:indices)) <+> ppInstrMeta metadata
+    GetElementPtr {..} -> "getelementptr" <+> bounds inBounds <+> pretty type' <+> commas (pretty argTy : fmap ppTyped (address:indices)) <+> ppInstrMeta metadata
       where argTy = typeOf' address
     ExtractValue {..} -> "extractvalue" <+> commas (ppTyped aggregate : fmap pretty indices') <+> ppInstrMeta metadata
 
