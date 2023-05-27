@@ -1,5 +1,5 @@
 name:                llvm-hs-pretty
-version:             12.0.0
+version:             15.0.0
 license:             MIT
 synopsis:            A pretty printer for LLVM IR.
 description:         A pure Haskell pretty printer for the LLVM AST types provided by llvm-hs.
@@ -37,4 +37,4 @@ Test-suite test
     tasty-hunit, text, transformers,
     llvm-hs              >= 15,
     llvm-hs-pure         >= 15,
-    llvm-hs-pretty       >= 12   && < 13
+    llvm-hs-pretty       >= 15
