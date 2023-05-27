@@ -1370,7 +1370,7 @@ ppInvoke Invoke { function' = Right f,..}
     where
       functionType = case type'' of
                        fty@FunctionType{..} -> fty
-                       _ -> error "123 Invoking non-function type. (Malformed AST)"
+                       _ -> error "Invoking non-function type. (Malformed AST)"
       resultType' = resultType functionType
       ftype = if isVarArg functionType
               then ppFunctionArgumentTypes functionType
