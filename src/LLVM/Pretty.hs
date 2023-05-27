@@ -1326,7 +1326,7 @@ ppCall Call { function = Right f,..}
   = tail <+> "call" <+> pretty callingConvention <+> ppReturnAttributes returnAttributes <+> pretty resultType' <+> ftype
     <+> pretty f <> parens (commas $ fmap ppArguments arguments) <+> ppFunctionAttributes functionAttributes
     where
-      functionType = case (referencedType (typeOf' f)) of
+      functionType = case type' of
                        fty@FunctionType {..} -> fty
                        _ -> error "Calling non function type. (Malformed AST)"
       resultType' = resultType functionType
@@ -1368,7 +1368,7 @@ ppInvoke Invoke { function' = Right f,..}
   = "invoke" <+> pretty callingConvention' <+> pretty resultType' <+> ftype
     <+> pretty f <> parens (commas $ fmap ppArguments arguments') <+> ppFunctionAttributes functionAttributes'
     where
-      functionType = case referencedType (typeOf' f) of
+      functionType = case type'' of
                        fty@FunctionType{..} -> fty
                        _ -> error "Invoking non-function type. (Malformed AST)"
       resultType' = resultType functionType
